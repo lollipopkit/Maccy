@@ -147,8 +147,8 @@ class HistoryItem {
       text
     } else if let rtf = rtf, !rtf.string.isEmpty {
       rtf.string
-    } else if let html = html, !html.string.isEmpty {
-      html.string
+    } else if let htmlText, !htmlText.isEmpty {
+      htmlText
     } else {
       title
     }
@@ -164,13 +164,7 @@ class HistoryItem {
   }
 
   var htmlData: Data? { contentData([.html]) }
-  var html: NSAttributedString? {
-    guard let data = htmlData else {
-      return nil
-    }
-
-    return NSAttributedString(html: data, documentAttributes: nil)
-  }
+  var htmlText: String? { htmlData.flatMap(String.init(html:)) }
 
   var hasImage: Bool { hasContent(Self.imageTypes) || universalClipboardImage }
   var hasRichText: Bool { hasContent([.rtf, .html]) }
@@ -226,7 +220,7 @@ class HistoryItem {
   }
 
   private func content(_ types: [NSPasteboard.PasteboardType]) -> HistoryItemContent? {
-    contents.first { types.contains(NSPasteboard.PasteboardType($0.type)) }
+    contents.first { types.contains(NSPasteboard.PasteboardType($0.type)) && $0.hasValue }
   }
 
   private func contentData(_ types: [NSPasteboard.PasteboardType]) -> Data? {

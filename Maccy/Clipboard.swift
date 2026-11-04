@@ -286,10 +286,8 @@ class Clipboard {
       }
     }
 
-    if let html = item.data(forType: .html) {
-      if let attributedString = NSAttributedString(html: html, documentAttributes: nil) {
-        return !attributedString.string.isEmpty
-      }
+    if let html = item.data(forType: .html), let text = String(html: html) {
+      return !text.isEmpty
     }
 
     return false

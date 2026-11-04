@@ -167,6 +167,24 @@ extension SharedStateTests {
       #expect(item2.pin == "")
     }
 
+    @Test("Text is extracted from HTML in-process", arguments: [
+      // 192.0.2.1 never answers, so loading the image would hang.
+      ("<meta charset=\"utf-8\"><img src=\"https://192.0.2.1/x.png\">", "\u{FFFC}"),
+      (
+        "<meta charset='utf-8'><span>你好 &amp; world</span><p>a</p><p>b<br>c</p><script>x()</script>",
+        "你好 & world\na\nb\nc\n"
+      ),
+      ("<head><title>t</title></head><ul><li>one</li><li>two</li></ul>", "one\ntwo\n"),
+      ("<table><tr><td> Name </td><td>Price</td></tr><tr><td>a</td><td>1</td></tr></table>", "Name\tPrice\na\t1\n"),
+      ("<p>\n    hello\n    world\n</p><pre>  x\n  y</pre>", "hello world\n  x\n  y\n"),
+      ("<b>foo</b>\u{0}", "foo")
+    ])
+    func htmlText(html: String, text: String) {
+      let start = Date.now
+      #expect(historyItem(html.data(using: .utf8), .html).htmlText == text)
+      #expect(Date.now.timeIntervalSince(start) < 1)
+    }
+
     @Test("Uncached value reads saved and unsaved values")
     func uncachedValue() throws {
       let type = NSPasteboard.PasteboardType.string.rawValue
