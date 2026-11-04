@@ -110,6 +110,7 @@
 		DA6373981E4AB9BB00263391 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA6373971E4AB9BB00263391 /* Assets.xcassets */; };
 		DA6491B029ABCF2400837D93 /* NSScreen+ForPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6491AF29ABCF2400837D93 /* NSScreen+ForPopup.swift */; };
 		DA689FB02C1CD3B00009B887 /* StorageSettings.strings in Resources */ = {isa = PBXBuildFile; fileRef = DA689FAE2C1CD3B00009B887 /* StorageSettings.strings */; };
+		6B627D4EAAA24625A20F0087 /* NumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 323902ABBD6E45B8B7F1D917 /* NumberField.swift */; };
 		DA689FC42C1CF0F00009B887 /* AppearanceSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA689FC32C1CF0F00009B887 /* AppearanceSettingsPane.swift */; };
 		DA689FC62C1D14F10009B887 /* PopupPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA689FC52C1D14F10009B887 /* PopupPosition.swift */; };
 		DA689FC82C1D15140009B887 /* PinsPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA689FC72C1D15140009B887 /* PinsPosition.swift */; };
@@ -416,6 +417,7 @@
 		DA689FC02C1CD41B0009B887 /* th */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = th; path = th.lproj/StorageSettings.strings; sourceTree = "<group>"; };
 		DA689FC12C1CD41B0009B887 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/StorageSettings.strings; sourceTree = "<group>"; };
 		DA689FC22C1CD41C0009B887 /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = uk.lproj/StorageSettings.strings; sourceTree = "<group>"; };
+		323902ABBD6E45B8B7F1D917 /* NumberField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberField.swift; sourceTree = "<group>"; };
 		DA689FC32C1CF0F00009B887 /* AppearanceSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsPane.swift; sourceTree = "<group>"; };
 		DA689FC52C1D14F10009B887 /* PopupPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPosition.swift; sourceTree = "<group>"; };
 		DA689FC72C1D15140009B887 /* PinsPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinsPosition.swift; sourceTree = "<group>"; };
@@ -713,6 +715,7 @@
 			children = (
 				DA9C3C642C211B5F0056795D /* AdvancedSettingsPane.swift */,
 				DA740D782C21E6B0007B1A36 /* AdvancedSettings.strings */,
+				323902ABBD6E45B8B7F1D917 /* NumberField.swift */,
 				DA689FC32C1CF0F00009B887 /* AppearanceSettingsPane.swift */,
 				DA689FCD2C1DEE570009B887 /* AppearanceSettings.strings */,
 				DAA5ACB12C1B3F8800B58513 /* GeneralSettingsPane.swift */,
@@ -1173,6 +1176,7 @@
 				2FD499472FFC4AEF00149F02 /* ItemEditorView.swift in Sources */,
 				DA243D122C2F64830012A27F /* ContentView.swift in Sources */,
 				DAD665662898A1C000975096 /* KeyChord.swift in Sources */,
+				6B627D4EAAA24625A20F0087 /* NumberField.swift in Sources */,
 				DA689FC42C1CF0F00009B887 /* AppearanceSettingsPane.swift in Sources */,
 				2F1091D72F2B6E8400F5C454 /* AsyncView.swift in Sources */,
 				DAA072E72C423617006DDFD2 /* NSSize+DefaultsSerializable.swift in Sources */,

@@ -62,13 +62,6 @@ struct StorageSettingsPane: View {
   @State private var viewModel = ViewModel()
   @State private var storageSize = Storage.shared.size
 
-  private let sizeFormatter: NumberFormatter = {
-    let formatter = NumberFormatter()
-    formatter.minimum = 1
-    formatter.maximum = 999
-    return formatter
-  }()
-
   var body: some View {
     Settings.Container(contentWidth: 450) {
       Settings.Section(
@@ -94,13 +87,8 @@ struct StorageSettingsPane: View {
 
       Settings.Section(label: { Text("Size", tableName: "StorageSettings") }) {
         HStack {
-          TextField("", value: $size, formatter: sizeFormatter)
-            .frame(width: 80)
+          NumberField(value: $size, range: 1...999, width: 80, label: Text("Size", tableName: "StorageSettings"))
             .help(Text("SizeTooltip", tableName: "StorageSettings"))
-            .accessibilityLabel(Text("Size", tableName: "StorageSettings"))
-          Stepper("", value: $size, in: 1...999)
-            .labelsHidden()
-            .accessibilityLabel(Text("Size", tableName: "StorageSettings"))
           Text(storageSize)
             .controlSize(.small)
             .foregroundStyle(.gray)
