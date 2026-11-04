@@ -41,22 +41,20 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
     return url.deletingPathExtension().lastPathComponent
   }
 
-  var hasImage: Bool { item.image != nil }
+  var hasImage: Bool { item.hasImage }
   var hasFileURLs: Bool { !item.fileURLs.isEmpty }
   var hasPlainText: Bool { item.text != nil }
-  var hasRichText: Bool { item.rtf != nil || item.html != nil }
+  var hasRichText: Bool { item.hasRichText }
 
   var previewImageGenerationTask: Task<(), Error>?
   var thumbnailImageGenerationTask: Task<(), Error>?
   var previewImage: NSImage?
   private(set) var previewText = SizedString("")
   var thumbnailImage: NSImage?
+  // Recorded while resizing, so the full-size image need not be kept around to describe it.
+  private(set) var imagePixelSize: NSSize?
+  private(set) var imageSize: String?
   var applicationImage: ApplicationImage
-
-  @ObservationIgnored
-  private(set) lazy var imageSize: String? = item.imageData.map {
-    ByteCountFormatter.string(fromByteCount: Int64($0.count), countStyle: .file)
-  }
 
   // 10k characters seems to be more than enough on large displays
   var text: String { previewText.string.shortened(to: 10_000) }
@@ -83,15 +81,18 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
   // Describe the complete item independently of its potentially truncated visual content.
   var accessibilityLabel: String {
     var parts: [String] = []
-    if hasImage, let image = item.image {
-      let size = image.pixelSize
-      parts.append(
-        String(
-          format: NSLocalizedString("history_item_image_accessibility_label_no_app", comment: ""),
-          Int(size.width),
-          Int(size.height)
+    if hasImage {
+      if let size = imagePixelSize {
+        parts.append(
+          String(
+            format: NSLocalizedString("history_item_image_accessibility_label_no_app", comment: ""),
+            Int(size.width),
+            Int(size.height)
+          )
         )
-      )
+      } else {
+        parts.append(NSLocalizedString("history_item_image_accessibility_generic", comment: ""))
+      }
     } else {
       parts.append(title)
     }
@@ -126,7 +127,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
 
   @MainActor
   func ensureThumbnailImage() {
-    guard item.image != nil else {
+    guard hasImage else {
       return
     }
     guard thumbnailImage == nil else {
@@ -136,13 +137,14 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
       return
     }
     thumbnailImageGenerationTask = Task { [weak self] in
+      guard !Task.isCancelled else { return }
       self?.generateThumbnailImage()
     }
   }
 
   @MainActor
   func ensurePreviewImage() {
-    guard item.image != nil else {
+    guard hasImage else {
       return
     }
     guard previewImage == nil else {
@@ -152,6 +154,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
       return
     }
     previewImageGenerationTask = Task { [weak self] in
+      guard !Task.isCancelled else { return }
       self?.generatePreviewImage()
     }
   }
@@ -169,28 +172,41 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
   @MainActor
   func cleanupImages() {
     thumbnailImageGenerationTask?.cancel()
-    previewImageGenerationTask?.cancel()
-    thumbnailImage?.recache()
-    previewImage?.recache()
+    thumbnailImageGenerationTask = nil
     thumbnailImage = nil
+    releasePreviewImage()
+  }
+
+  // Previews are screen-sized, so they are only kept while the popup is open.
+  @MainActor
+  func releasePreviewImage() {
+    previewImageGenerationTask?.cancel()
+    previewImageGenerationTask = nil
     previewImage = nil
-    item.clearDecodedImageCache()
   }
 
   @MainActor
   private func generateThumbnailImage() {
-    guard let image = item.image else {
-      return
-    }
-    thumbnailImage = image.resized(to: HistoryItemDecorator.thumbnailImageSize)
+    thumbnailImage = resizedImage(to: HistoryItemDecorator.thumbnailImageSize)
   }
 
   @MainActor
   private func generatePreviewImage() {
-    guard let image = item.image else {
-      return
+    previewImage = resizedImage(to: HistoryItemDecorator.previewImageSize)
+  }
+
+  // The full-size data and decoded image are autoreleased, so drain them right away
+  // instead of letting every visible row pile them up until the run loop drains.
+  @MainActor
+  private func resizedImage(to size: NSSize) -> NSImage? {
+    autoreleasepool {
+      guard let data = item.imageData, let image = NSImage(data: data) else {
+        return nil
+      }
+      imageSize = ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)
+      imagePixelSize = image.pixelSize
+      return image.resized(to: size)
     }
-    previewImage = image.resized(to: HistoryItemDecorator.previewImageSize)
   }
 
   @MainActor

@@ -84,8 +84,6 @@ class HistoryItem {
   @Relationship(deleteRule: .cascade, inverse: \HistoryItemContent.item)
   var contents: [HistoryItemContent] = []
 
-  @Transient private var cachedDecodedImage: NSImage?
-
   init(contents: [HistoryItemContent] = []) {
     self.firstCopiedAt = firstCopiedAt
     self.lastCopiedAt = lastCopiedAt
@@ -98,7 +96,7 @@ class HistoryItem {
         !Self.transientTypes.contains(content.type)
       }
       .allSatisfy { content in
-        contents.contains(where: { $0.type == content.type && $0.value == content.value })
+        contents.contains(where: { $0.type == content.type && $0.hasSameValue(as: content) })
       }
   }
 
@@ -174,26 +172,19 @@ class HistoryItem {
     return NSAttributedString(html: data, documentAttributes: nil)
   }
 
+  var hasImage: Bool { hasContent(Self.imageTypes) || universalClipboardImage }
+  var hasRichText: Bool { hasContent([.rtf, .html]) }
+
+  // Images are the largest contents, so they are read without caching them on the model.
   var imageData: Data? {
-    var data: Data?
-    data = contentData(Self.imageTypes)
-    if data == nil, universalClipboardImage, let url = fileURLs.first {
-      data = try? Data(contentsOf: url)
+    if let data = content(Self.imageTypes)?.uncachedValue {
+      return data
+    }
+    if universalClipboardImage, let url = fileURLs.first {
+      return try? Data(contentsOf: url)
     }
 
-    return data
-  }
-
-  var image: NSImage? {
-    if let img = cachedDecodedImage {
-      return img
-    }
-    guard let data = imageData else {
-      return nil
-    }
-
-    cachedDecodedImage = NSImage(data: data)
-    return cachedDecodedImage
+    return nil
   }
 
   var rtfData: Data? { contentData([.rtf]) }
@@ -203,11 +194,6 @@ class HistoryItem {
     }
 
     return NSAttributedString(rtf: data, documentAttributes: nil)
-  }
-
-  func clearDecodedImageCache() {
-    cachedDecodedImage?.recache()
-    cachedDecodedImage = nil
   }
 
   var text: String? {
@@ -227,20 +213,24 @@ class HistoryItem {
     return Int(modified)
   }
 
-  var fromMaccy: Bool { contentData([.fromMaccy]) != nil }
-  var universalClipboard: Bool { contentData([.universalClipboard]) != nil }
+  var fromMaccy: Bool { hasContent([.fromMaccy]) }
+  var universalClipboard: Bool { hasContent([.universalClipboard]) }
 
   private var universalClipboardImage: Bool { universalClipboard && fileURLs.first?.pathExtension == "jpeg" }
   private var universalClipboardText: Bool {
-    universalClipboard && contentData([.html, .tiff, .png, .jpeg, .rtf, .string, .heic]) != nil
+    universalClipboard && hasContent([.html, .tiff, .png, .jpeg, .rtf, .string, .heic])
+  }
+
+  private func hasContent(_ types: [NSPasteboard.PasteboardType]) -> Bool {
+    contents.contains { types.contains(NSPasteboard.PasteboardType($0.type)) && $0.hasValue }
+  }
+
+  private func content(_ types: [NSPasteboard.PasteboardType]) -> HistoryItemContent? {
+    contents.first { types.contains(NSPasteboard.PasteboardType($0.type)) }
   }
 
   private func contentData(_ types: [NSPasteboard.PasteboardType]) -> Data? {
-    let content = contents.first(where: { content in
-      return types.contains(NSPasteboard.PasteboardType(content.type))
-    })
-
-    return content?.value
+    content(types)?.value
   }
 
   private func allContentData(_ types: [NSPasteboard.PasteboardType]) -> [Data] {

@@ -204,12 +204,13 @@ struct ItemEditorView: View {
 
     let historyItem = item.item
     let stringType = NSPasteboard.PasteboardType.string.rawValue
+    // Removing contents from the relationship alone would leave them orphaned in storage.
+    let formattedContents = historyItem.contents.filter { $0.type != stringType }
     historyItem.contents.removeAll { $0.type != stringType }
+    formattedContents.forEach { historyItem.modelContext?.delete($0) }
 
-    if let index = historyItem.contents.firstIndex(where: {
-      $0.type == stringType
-    }) {
-      historyItem.contents[index].value = data
+    if let content = historyItem.contents.first(where: { $0.type == stringType }) {
+      content.update(value: data)
     } else {
       historyItem.contents.append(
         HistoryItemContent(type: stringType, value: data)

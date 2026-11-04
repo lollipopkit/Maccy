@@ -127,9 +127,8 @@ extension SharedStateTests {
       let item = HistoryItem()
       Storage.shared.context.insert(item)
       item.contents = [fileURLContent, universalClipboardContent]
-      let image = try #require(item.image)
-      let expected = try #require(NSImage(data: try Data(contentsOf: url)))
-      #expect(image.tiffRepresentation == expected.tiffRepresentation)
+      #expect(item.hasImage)
+      #expect(item.imageData == (try Data(contentsOf: url)))
     }
 
     @Test("File from Universal Clipboard")
@@ -166,6 +165,47 @@ extension SharedStateTests {
       }
       #expect(item1.pin == "")
       #expect(item2.pin == "")
+    }
+
+    @Test("Uncached value reads saved and unsaved values")
+    func uncachedValue() throws {
+      let type = NSPasteboard.PasteboardType.string.rawValue
+      let content = HistoryItemContent(type: type, value: Data("foo".utf8))
+      #expect(content.uncachedValue == Data("foo".utf8))
+
+      let item = HistoryItem()
+      Storage.shared.context.insert(item)
+      item.contents = [content]
+      #expect(content.uncachedValue == Data("foo".utf8))
+      try Storage.shared.context.save()
+      #expect(content.uncachedValue == Data("foo".utf8))
+
+      content.update(value: Data("bar".utf8))
+      #expect(content.uncachedValue == Data("bar".utf8))
+      try Storage.shared.context.save()
+      #expect(content.uncachedValue == Data("bar".utf8))
+    }
+
+    @Test("Content values are compared by digest")
+    func hasSameValue() {
+      let type = NSPasteboard.PasteboardType.string.rawValue
+      let foo = HistoryItemContent(type: type, value: Data("foo".utf8))
+      #expect(foo.hasSameValue(as: HistoryItemContent(type: type, value: Data("foo".utf8))))
+      #expect(!foo.hasSameValue(as: HistoryItemContent(type: type, value: Data("bar".utf8))))
+      let empty = HistoryItemContent(type: type, value: Data())
+      #expect(!HistoryItemContent(type: type, value: nil).hasSameValue(as: empty))
+
+      let edited = HistoryItemContent(type: type, value: Data("bar".utf8))
+      edited.update(value: Data("foo".utf8))
+      #expect(foo.hasSameValue(as: edited))
+    }
+
+    @Test("Image is detected without decoding")
+    func hasImage() throws {
+      let image = try #require(NSImage(named: "NSApplicationIcon"))
+      #expect(historyItem(image).hasImage)
+      #expect(!historyItem("foo").hasImage)
+      #expect(!historyItem(nil, .tiff).hasImage)
     }
 
     private func historyItem(_ value: String?) -> HistoryItem {

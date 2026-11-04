@@ -80,6 +80,37 @@ extension SharedStateTests {
       #expect(try #require(itemDecorator.thumbnailImage).size == NSSize(width: 40, height: 40))
     }
 
+    @Test("Image pixel size is recorded while resizing")
+    func imagePixelSize() throws {
+      let image = try #require(NSImage(named: "NSApplicationIcon"))
+      let itemDecorator = historyItemDecorator(image)
+      #expect(itemDecorator.imagePixelSize == nil)
+      itemDecorator.sizeImages()
+      #expect(itemDecorator.imagePixelSize == NSImage(data: image.tiffRepresentation!)?.pixelSize)
+    }
+
+    @Test("Releasing preview image keeps thumbnail")
+    func releasePreviewImage() throws {
+      let image = try #require(NSImage(named: "NSApplicationIcon"))
+      let itemDecorator = historyItemDecorator(image)
+      itemDecorator.sizeImages()
+      itemDecorator.releasePreviewImage()
+      #expect(itemDecorator.previewImage == nil)
+      #expect(itemDecorator.thumbnailImage != nil)
+    }
+
+    @Test("Resized image does not retain the original")
+    func resizedImageDoesNotRetainOriginal() throws {
+      weak var original: NSImage?
+      let resized = try autoreleasepool {
+        let image = try #require(NSImage(named: "NSApplicationIcon")?.copy() as? NSImage)
+        original = image
+        return image.resized(to: NSSize(width: 40, height: 40))
+      }
+      #expect(resized.size == NSSize(width: 40, height: 40))
+      #expect(original == nil)
+    }
+
     @Test("File", arguments: ["/tmp/foo.bar", "/tmp/产品培训/产品培训.txt"])
     func file(path: String) {
       let url = URL(fileURLWithPath: path)

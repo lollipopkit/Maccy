@@ -114,7 +114,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       contentRect: NSRect(origin: .zero, size: Defaults[.windowSize]),
       identifier: Bundle.main.bundleIdentifier ?? "org.p0deje.Maccy",
       statusBarButton: statusItem.button,
-      onClose: { AppState.shared.popup.reset() }
+      onClose: {
+        AppState.shared.popup.reset()
+        AppState.shared.history.releasePreviewImages()
+      }
     ) {
       ContentView()
     }
@@ -169,8 +172,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       _ = try? Storage.shared.sanitizeTitles()
     }
 
-    ensureMigration(key: "2026-09-15-remove-unpersistable-contents") {
-      _ = try? Storage.shared.removeUnpersistableContents()
+    // Reads all contents, so it runs after blobs are moved out of SQLite.
+    Storage.shared.migrate {
+      self.ensureMigration(key: "2026-09-15-remove-unpersistable-contents") {
+        _ = try? Storage.shared.removeUnpersistableContents()
+      }
     }
 
     // The following defaults are not used in Maccy 2.x

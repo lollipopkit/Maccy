@@ -124,6 +124,7 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
 
   @MainActor
   func load() async throws {
+    await Storage.shared.migration?.value
     let descriptor = FetchDescriptor<HistoryItem>()
     let results = try Storage.shared.context.fetch(descriptor)
     let decorators = sorter.sort(results).map { HistoryItemDecorator($0) }
@@ -168,25 +169,7 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
 
     var replacedPinnedItem: HistoryItemDecorator?
     if let existingHistoryItem = findSimilarItem(item) {
-      if isModified(item) == nil {
-        transferContents(from: existingHistoryItem, to: item)
-      }
-      item.firstCopiedAt = existingHistoryItem.firstCopiedAt
-      item.numberOfCopies += existingHistoryItem.numberOfCopies
-      item.pin = existingHistoryItem.pin
-      item.title = existingHistoryItem.title
-      if !item.fromMaccy {
-        item.application = existingHistoryItem.application
-      }
-      logger.info("Removing duplicate item '\(item.title)'")
-      if let existingDecorator = firstStoredItem(where: { $0.item == existingHistoryItem }) {
-        cleanup(existingDecorator)
-        allUnpinnedItems.removeAll { $0 == existingDecorator }
-        if existingDecorator.isPinned {
-          replacedPinnedItem = existingDecorator
-        }
-      }
-      deleteFromStorage(existingHistoryItem)
+      replacedPinnedItem = merge(existingHistoryItem, into: item)
     } else {
       Task {
         Notifier.notify(body: item.title, sound: .write)
@@ -219,6 +202,35 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
     }
     AppState.shared.popup.needsResize = true
     return itemDecorator
+  }
+
+  /// Replaces `existingItem` with `item`. Returns the pinned decorator that `item` takes the place of.
+  @MainActor
+  private func merge(_ existingItem: HistoryItem, into item: HistoryItem) -> HistoryItemDecorator? {
+    if isModified(item) == nil {
+      transferContents(from: existingItem, to: item)
+    }
+    item.firstCopiedAt = existingItem.firstCopiedAt
+    item.numberOfCopies += existingItem.numberOfCopies
+    item.pin = existingItem.pin
+    item.title = existingItem.title
+    if !item.fromMaccy {
+      item.application = existingItem.application
+    }
+    logger.info("Removing duplicate item '\(item.title)'")
+
+    var replacedPinnedItem: HistoryItemDecorator?
+    if let existingDecorator = firstStoredItem(where: { $0.item == existingItem }) {
+      cleanup(existingDecorator)
+      allUnpinnedItems.removeAll { $0 == existingDecorator }
+      if existingDecorator.isPinned {
+        replacedPinnedItem = existingDecorator
+      }
+    }
+    sessionLog.removeValues { $0 == existingItem }
+    deleteFromStorage(existingItem)
+
+    return replacedPinnedItem
   }
 
   @MainActor
@@ -343,6 +355,16 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
   @MainActor
   private func cleanup(_ item: HistoryItemDecorator) {
     item.cleanupImages()
+  }
+
+  @MainActor
+  func releasePreviewImages() {
+    for item in allPinnedItems {
+      item.releasePreviewImage()
+    }
+    for item in allUnpinnedItems {
+      item.releasePreviewImage()
+    }
   }
 
   @MainActor
@@ -566,7 +588,7 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
 
   @MainActor
   private func updateTitlesForSpecialSymbols() {
-    for item in items where item.item.imageData == nil {
+    for item in items where !item.hasImage {
       updateTitle(item: item, title: item.item.generateTitle())
     }
   }

@@ -24,13 +24,38 @@ extension NSImage {
       return self
     }
 
-    return NSImage(size: newSize, flipped: false) { destRect in
-      if let context = NSGraphicsContext.current {
-        context.imageInterpolation = .high
-        self.draw(in: destRect, from: NSRect.zero, operation: .copy, fraction: 1)
-      }
-
-      return true
+    // Render into a standalone bitmap: a drawing handler would capture and retain the original image.
+    // Use the popup screen's resolution, but never more pixels than the original has.
+    let pixelsWide = representations.map(\.pixelsWide).max() ?? 0
+    var scale = NSScreen.forPopup?.backingScaleFactor ?? 2
+    if pixelsWide > 0 {
+      scale = min(scale, CGFloat(pixelsWide) / newWidth)
     }
+    guard let bitmap = NSBitmapImageRep(
+      bitmapDataPlanes: nil,
+      pixelsWide: max(1, Int((newWidth * scale).rounded())),
+      pixelsHigh: max(1, Int((newHeight * scale).rounded())),
+      bitsPerSample: 8,
+      samplesPerPixel: 4,
+      hasAlpha: true,
+      isPlanar: false,
+      colorSpaceName: .deviceRGB,
+      bytesPerRow: 0,
+      bitsPerPixel: 0
+    )?.retagging(with: .displayP3), // Wide enough not to clip colors of screenshots.
+      let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+      return self
+    }
+    bitmap.size = newSize
+
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = context
+    context.imageInterpolation = .high
+    draw(in: NSRect(origin: .zero, size: newSize), from: .zero, operation: .copy, fraction: 1)
+    NSGraphicsContext.restoreGraphicsState()
+
+    let image = NSImage(size: newSize)
+    image.addRepresentation(bitmap)
+    return image
   }
 }
